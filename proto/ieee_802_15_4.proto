@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+message Command {
+    oneof command {
+        Configure configure = 1;
+        Send send = 2;
+    }
+}
+
+message Event {
+    oneof event {
+        Received received = 1;
+    }
+}
+
+message Received {
+    bytes payload = 1;
+    uint32 link_quality_indicator = 2;
+}
+
+/**
+ * Send a message
+ */
+message Send {
+    bytes payload = 1;
+}
+
+message Configure {
+    Channel channel = 1;
+    TxPower tx_power = 2;
+}
+
+enum Channel {
+    NONE = 0;
+    C11 = 5;
+    C12 = 10;
+    C13 = 15;
+    C14 = 20;
+    C15 = 25;
+    C16 = 30;
+    C17 = 35;
+    C18 = 40;
+    C19 = 45;
+    C20 = 50;
+    C21 = 55;
+    C22 = 60;
+    C23 = 65;
+    C24 = 70;
+    C25 = 75;
+    C26 = 80;
+}
+
+enum TxPower {
+    P8 = 0;
+    P7 = 1;
+    P6 = 2;
+    P5 = 3;
+    P4 = 4;
+    P2 = 5;
+    ZERO = 6;
+    N4 = 7;
+    N8 = 8;
+    N12 = 9;
+    N16 = 10;
+    N20 = 11;
+    N40 = 12;
+}

@@ -1,0 +1,43 @@
+[package]
+authors = ["David Ireland <davidji@pobox.com>"]
+edition = "2021"
+name = "nrf24l01-gateway"
+version = "0.1.0"
+
+[dependencies]
+cortex-m = { version = "0.7.2", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7"
+defmt = "1.0.1"
+defmt-rtt = "1.0.0"
+
+fugit = "0.3.7"
+
+rtic = { version = "2.2.0", features = [ "thumbv7-backend" ] }
+rtic-monotonics = { version = "2.0.3", features = [ "stm32_tim2", "stm32-metapac", "stm32f411ce", "defmt" ]}
+rtic-sync = { version = "1.4.0", features = ["defmt-03" ]}
+
+embedded-hal = { version = "1.0.0" }
+embedded-hal-nb = { version = "1.0.0" }
+
+panic-probe = { version = "1.0.0", features = [ "print-defmt" ] }
+
+# embedded-nrf24l01 = { git = "https://github.com/astro/embedded-nrf24l01" }
+# embedded-nrf24l01 = { path="../embedded-nrf24l01" }
+usb-device = "0.3.2"
+usbd-serial = "0.2.2"
+micropb = { version = "0.3.0", features = ["container-heapless"] }
+heapless = { version = "0.8", features = [ "defmt-03"] }
+
+[dependencies.hal]
+package = "nrf52840-hal"
+version = "0.18.0" 
+features = [ "rt" ]
+
+# this lets you use `cargo fix`!
+[[bin]]
+name = "nrf24l01-gateway"
+test = false
+bench = false
+
+[build-dependencies]
+micropb-gen = "0.3.0"
