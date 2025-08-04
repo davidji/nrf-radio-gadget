@@ -1,7 +1,9 @@
 
-use hal::peripherals::RADIO;
-use hal::radio::ieee802154;
-use rtic_sync::channel::{ Channel, ReceiveError, Receiver, Sender, TrySendError};
+use futures::{select_biased, FutureExt};
+use defmt::{ debug, warn };
+use heapless::Vec;
+use hal::ieee802154::{self, Packet};
+use rtic_sync::channel::{ Channel, ReceiveError, Receiver, Sender };
 use crate::proto::{  
     self, 
     Command, 
@@ -11,10 +13,11 @@ use crate::proto::{
     Configure,
 };
 
-const COMMANDS_SIZE: usize = 4;
-const EVENTS_SIZE: usize = 4;
 
-pub type Radio = ieee802154::Radio<'static, RADIO>;
+pub const COMMANDS_SIZE: usize = 4;
+pub const EVENTS_SIZE: usize = 4;
+
+pub type Radio = ieee802154::Radio<'static>;
 
 pub struct RadioAllocator {
     commands: Channel<crate::proto::Command, COMMANDS_SIZE>,
@@ -65,21 +68,48 @@ impl <'a> RadioClient<'a> {
 impl <'a> RadioTask<'a> {
     pub async fn run(&mut self) {
         loop {
-            match self.commands.recv().await {
-                Ok(Command { command: Some(command) }) => {
-                    match command {
-                        Command_::Command::Send(Send { payload }) => {
-                            let mut packet = ieee802154::Packet::new();
-                            packet.copy_from_slice(&payload);
-                            self.radio.try_send(&mut packet).await.unwrap();
-                        },
-                        _ => {
-                            // Handle other commands
-                        }
+            let mut packet = Packet::new();
+            select_biased! {
+                result = self.radio.recv_non_blocking(&mut packet).fuse() => {
+                    match result {
+                        Ok(_) => self.received(&mut packet).await,
+                        Err(crc) => debug!("CRC check failed: {:?}", crc),
                     }
                 },
-                Err(ReceiveError::NoSender) => break,
-                Ok(Command { command: None }) | Err(ReceiveError::Empty) => continue,
+
+                result = self.commands.recv().fuse() => {
+                    match result {
+                        Ok(Command { command }) => self.command(command),
+                        Err(ReceiveError::NoSender) => break,
+                        Err(ReceiveError::Empty) => warn!("Empty result awaiting command"),
+                    }
+                }
+            };
+        }
+    }
+
+    async fn received(&mut self, packet: &mut Packet) {
+        self.events.send(Event {
+            event: Some(proto::Event_::Event::Received(proto::Received { 
+                payload: Vec::from_slice(packet.as_ref()).unwrap(),
+                link_quality_indicator: packet.lqi() as u32,
+            })),
+        }).await.unwrap();
+    }
+
+    fn command(&mut self, command: Option<Command_::Command>) {
+        match command {
+            Some(Command_::Command::Send(Send { payload })) => {
+                let mut packet = ieee802154::Packet::new();
+                packet.copy_from_slice(&payload);
+                self.radio.send(&mut packet);
+            },
+            Some(Command_::Command::Configure(Configure { channel, tx_power })) => {
+                self.radio.set_channel(channel.try_into().unwrap());
+                self.radio.set_txpower(tx_power.try_into().unwrap());
+            },
+            None => {
+                defmt::warn!("Received command without payload");
             }
         }
     }

@@ -51,17 +51,17 @@ enum Channel {
 }
 
 enum TxPower {
-    P8 = 0;
-    P7 = 1;
-    P6 = 2;
-    P5 = 3;
-    P4 = 4;
-    P2 = 5;
-    ZERO = 6;
-    N4 = 7;
-    N8 = 8;
-    N12 = 9;
-    N16 = 10;
-    N20 = 11;
-    N40 = 12;
+    POS8D_BM = 0;
+    POS7D_BM = 1;
+    POS6D_BM = 2;
+    POS5D_BM = 3;
+    POS4D_BM = 4;
+    POS2D_BM = 5;
+    _0D_BM = 6;
+    NEG4D_BM = 7;
+    NEG8D_BM = 8;
+    NEG12D_BM = 9;
+    NEG16D_BM = 10;
+    NEG20D_BM = 11;
+    NEG40D_BM = 12;
 }
