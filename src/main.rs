@@ -1,4 +1,3 @@
-
 #![no_main]
 #![no_std]
 
@@ -14,7 +13,7 @@ use rtic_monotonics::nrf::timer::prelude::*;
 const MONO_RATE: u32 = 1_000_000;
 nrf_timer0_monotonic!(Mono, MONO_RATE);
 
-#[rtic::app(device = hal::pac, dispatchers = [ UARTE1 ])]
+#[rtic::app(device = hal::pac, dispatchers = [ UARTE0_UART0, UARTE1, SPIM3 ])]
 mod app {
 
     use crate::Mono;
@@ -22,6 +21,9 @@ mod app {
     use crate::radio;
     use crate::proto;
 
+    use defmt::debug;
+    use embedded_hal::digital::OutputPin;
+    use gadget::usb::UsbBusAllocator;
     use gadget::{
         codec,
         stream::{
@@ -31,8 +33,10 @@ mod app {
         usb::{ Clock, Gadget, GadgetStorage, NetworkChannelStorage, RecvChannel, SendChannel },
     };
     use hal::{
+        pac::FICR,
         clocks::{ self, Clocks, },
         ieee802154,
+        gpio::{ Level, Output, PushPull},
         Rng,
         usbd::{ UsbPeripheral, Usbd },
     };
@@ -42,8 +46,6 @@ mod app {
         fugit::ExtU32, 
         Monotonic
     };
-
-    use usb_device::bus::UsbBusAllocator;
     
     impl Clock for Mono {
         type Instant = fugit::Instant<u64, 1, MONO_RATE>;
@@ -81,7 +83,7 @@ mod app {
         radio_task: radio::RadioTask<'static>,
         network_send: [SendChannel<'static, CHANNEL_CAPACITY>; CHANNELS],
         network_recv: [RecvChannel<'static, CHANNEL_CAPACITY>; CHANNELS],
-
+        led: hal::gpio::p0::P0_15<Output<PushPull>>,
     }
     
     #[init(local = [
@@ -95,19 +97,22 @@ mod app {
     ])]
     fn init(cx: init::Context) -> (Shared, Local) {
         let peripherals = cx.device;
+        let ficr = &peripherals.FICR;
         
         cx.local.clocks.replace(Clocks::new(peripherals.CLOCK).enable_ext_hfosc());
         let clocks = cx.local.clocks.as_ref().unwrap();
 
         Mono::start(peripherals.TIMER0);
 
+        let usb_device = Usbd::new(UsbPeripheral::new(peripherals.USBD, clocks));
+        
         let usb_bus_allocator = UsbBusAllocator::new(
-                Usbd::new(UsbPeripheral::new(peripherals.USBD, clocks)));
+                usb_device);
 
         let mut gadget = Gadget::new(
             b"radio",
-            crate::mac_address("interface"),
-            crate::mac_address("gadget"),
+            mac_address("interface", ficr),
+            mac_address("gadget", ficr),
             cx.local.gadget_storage,
             usb_bus_allocator,
             Rng::new(peripherals.RNG).random_u64());
@@ -117,8 +122,14 @@ mod app {
         let (radio_task_client, radio_task) = cx.local.radio.allocate(radio);
         let radio_channel = gadget.channel(1338, cx.local.radio_channel_storage);
 
+        let port0 = hal::gpio::p0::Parts::new(peripherals.P0);
+        let led = port0.p0_15.into_push_pull_output(Level::Low);
+
         radio_send_receive::spawn().unwrap();
-        usb_send::spawn().unwrap();
+        usb::spawn().unwrap();
+        blink::spawn().unwrap();
+
+        debug!("init done");
 
         (
             Shared { gadget }, 
@@ -130,31 +141,26 @@ mod app {
                 radio_task,
                 network_recv: [ radio_channel.net.recv],
                 network_send : [ radio_channel.net.send],
+                led,
             }
         )
     }
 
-    #[task(binds = USBD, shared = [gadget], local = [network_recv])]
-    fn usb_tx(cx: usb_tx::Context) {
-        let channels = cx.local.network_recv;
-        let mut shared = cx.shared.gadget;
 
-        shared.lock(|gadget| {
-            gadget.try_recv(channels);
-        });
-    }
-    
-    #[task(shared = [ gadget ], local = [ network_send ], priority=2)]
-    async fn usb_send(cx: usb_send::Context) {
-        let channels = cx.local.network_send;
+    #[task(shared = [ gadget ], local = [ network_send, network_recv ], priority=2)]
+    async fn usb(cx: usb::Context) {
+        // I can't find an example that enables the USB interrupt, so for now, polling
+        let send_channels = cx.local.network_send;
+        let recv_channels = cx.local.network_recv;
         let mut shared = cx.shared.gadget;
 
         loop {
+            let start = <Mono as Monotonic>::now();
             shared.lock(|gadget| {
-                gadget.try_send(channels);
+                gadget.poll(send_channels, recv_channels);
             });
 
-            Mono::delay(500.micros().into()).await;
+            Mono::delay_until(start + 500.micros()).await;
         }
     }
 
@@ -169,21 +175,37 @@ mod app {
     }
     
 
-    #[task(local = [radio_task])]
+    #[task(local = [radio_task], priority = 1)]
     async fn radio_send_receive(cx: radio_send_receive::Context) {
         let radio_task = cx.local.radio_task;
         radio_task.run().await;
     }
+
+    #[task(local = [ led ])]
+    async fn blink(cx: blink::Context) {
+        loop {
+            Mono::delay(1000.millis().into()).await;
+            cx.local.led.set_high().unwrap();
+            Mono::delay(1000.millis().into()).await;
+            cx.local.led.set_low().unwrap();
+        }
+    }
+
+    pub fn mac_address(seed: &str, ficr: &FICR) -> [u8; 6] {
+        use sha2::{ Digest, Sha256 };
+        let mut digest = Sha256::new();
+        digest.update(seed.as_bytes());
+        digest.update(ficr.deviceid[0].read().bits().to_le_bytes());
+        digest.update(ficr.deviceid[1].read().bits().to_le_bytes());
+        let hash = digest.finalize();
+        let mut mac = [0u8; 6];
+        mac.copy_from_slice(&hash[0..6]);
+        // Set the second-least-significant bit to indicate a locally administered address
+        mac[0] |= 0b00000010;
+        // the least significant bit in the most significant octet of a MAC address is the multicast bit
+        mac[0] &= 0b11111110;
+        mac
+    }
+
 }
 
-pub fn mac_address(seed: &str) -> [u8; 6] {
-    use sha2::{ Digest, Sha256 };
-    let mut digest = Sha256::new();
-    digest.update(seed.as_bytes());
-    let hash = digest.finalize();
-    let mut mac = [0u8; 6];
-    mac.copy_from_slice(&hash[0..6]);
-    // Set the second-least-significant bit to indicate a locally administered address
-    mac[0] |= 0b00000010; 
-    mac
-}

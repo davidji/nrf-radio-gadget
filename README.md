@@ -1,1 +1,1 @@
-# nrf24l01-gateway
+# nrf-radio-gadget

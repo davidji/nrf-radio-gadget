@@ -23,10 +23,7 @@ embedded-hal-nb = { version = "1.0.0" }
 
 panic-probe = { version = "1.0.0", features = [ "print-defmt" ] }
 
-# embedded-nrf24l01 = { git = "https://github.com/astro/embedded-nrf24l01" }
-# embedded-nrf24l01 = { path="../embedded-nrf24l01" }
 usb-device = "0.3.2"
-usbd-serial = "0.2.2"
 heapless = { version = "0.8", features = [ "defmt-03"] }
 paste = { package = "pastey", version = "0.1.0" }
 futures = { version = "0.3.31", default-features = false, features=["async-await"] }
@@ -41,10 +38,10 @@ path = "../nrf-hal/nrf52840-hal"
 features = [ "rt" ]
 
 # this lets you use `cargo fix`!
-# [[bin]]
-# name = "nrf-radio-gadget"
-# test = false
-# bench = false
+[[bin]]
+name = "nrf-radio-gadget"
+test = false
+bench = false
 
 [build-dependencies]
 micropb-gen = "0.3.0"

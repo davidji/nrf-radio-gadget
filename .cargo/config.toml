@@ -26,5 +26,5 @@ opt-level = "s"
 lto = true
 
 [profile.release]
-opt-level = 3
+opt-level = "s"
 lto = true
