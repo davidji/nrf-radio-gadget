@@ -661,6 +661,7 @@ dependencies = [
  "rtic-sync",
  "rtic2-usb-gadget",
  "sha2",
+ "usb-device",
 ]
 
 [[package]]
