@@ -5,7 +5,7 @@ use micropb_gen::{ Generator };
 fn proto_generate() {
     let mut gen = Generator::new(); 
     gen.use_container_heapless()
-        .configure(".Send.payload", micropb_gen::Config::new().max_bytes(125))
+        .configure(".Transmit.payload", micropb_gen::Config::new().max_bytes(125))
         .configure(".Received.payload", micropb_gen::Config::new().max_bytes(125))
         .add_protoc_arg("-Iproto")
         .compile_protos(

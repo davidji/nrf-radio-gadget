@@ -9,7 +9,7 @@ use crate::proto::{
     Command, 
     Event,
     Command_,
-    Send,
+    Transmit,
     Configure,
 };
 
@@ -99,7 +99,7 @@ impl <'a> RadioTask<'a> {
 
     fn command(&mut self, command: Option<Command_::Command>) {
         match command {
-            Some(Command_::Command::Send(Send { payload })) => {
+            Some(Command_::Command::Transmit(Transmit { payload })) => {
                 let mut packet = ieee802154::Packet::new();
                 packet.copy_from_slice(&payload);
                 self.radio.send(&mut packet);

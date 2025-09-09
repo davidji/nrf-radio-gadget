@@ -3,7 +3,7 @@ syntax = "proto3";
 message Command {
     oneof command {
         Configure configure = 1;
-        Send send = 2;
+        Transmit transmit = 2;
     }
 }
 
@@ -19,9 +19,9 @@ message Received {
 }
 
 /**
- * Send a message
+ * Transmit a message
  */
-message Send {
+message Transmit {
     bytes payload = 1;
 }
 
