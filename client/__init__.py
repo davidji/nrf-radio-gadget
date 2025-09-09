@@ -16,7 +16,6 @@ class RadioClient:
 
     def send(self, message: radio.Command):
         message = cobs.encode(message.SerializeToString()) + b'\0'
-        print("message length: ", len(message))
         self.writer.write(message)
     
     async def print_received(self):
