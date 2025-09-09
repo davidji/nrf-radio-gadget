@@ -6,8 +6,8 @@ async def connect(sender_address, receiver_address):
     radio1 = await client.connect(sender_address)
     radio2 = await client.connect(receiver_address)
 
-    radio1.configure(channel=radio.C15, tx_power=radio.NEG4D_BM)
-    radio2.configure(channel=radio.C15, tx_power=radio.NEG4D_BM)
+    radio1.configure(channel=radio.C15, tx_power=radio.POS8D_BM)
+    radio2.configure(channel=radio.C15, tx_power=radio.POS8D_BM)
     async def send():
         for i in range(10):
             radio1.transmit(b'Hello from radio 1')
