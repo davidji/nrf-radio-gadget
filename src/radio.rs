@@ -1,6 +1,6 @@
 
 use futures::{select_biased, FutureExt};
-use defmt::{ debug, warn };
+use defmt::{ debug, warn, info };
 use heapless::Vec;
 use hal::ieee802154::{self, Packet};
 use rtic_sync::channel::{ Channel, ReceiveError, Receiver, Sender };
@@ -86,6 +86,8 @@ impl <'a> RadioTask<'a> {
                 }
             };
         }
+
+        warn!("Radio task ending");
     }
 
     async fn received(&mut self, packet: &mut Packet) {
@@ -102,14 +104,18 @@ impl <'a> RadioTask<'a> {
             Some(Command_::Command::Transmit(Transmit { payload })) => {
                 let mut packet = ieee802154::Packet::new();
                 packet.copy_from_slice(&payload);
+                info!("Transmitting packet");
                 self.radio.send(&mut packet);
+                info!("Transmit complete");
             },
             Some(Command_::Command::Configure(Configure { channel, tx_power })) => {
+                info!("Configuring radio");
                 self.radio.set_channel(channel.try_into().unwrap());
                 self.radio.set_txpower(tx_power.try_into().unwrap());
+                info!("Configuration complete");
             },
             None => {
-                defmt::warn!("Received command without payload");
+                warn!("Received command without payload");
             }
         }
     }

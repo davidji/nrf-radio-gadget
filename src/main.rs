@@ -125,6 +125,8 @@ mod app {
         let port0 = hal::gpio::p0::Parts::new(peripherals.P0);
         let led = port0.p0_15.into_push_pull_output(Level::Low);
 
+        radio_commands_decode::spawn().unwrap();
+        radio_events_encode::spawn().unwrap();
         radio_send_receive::spawn().unwrap();
         usb::spawn().unwrap();
         blink::spawn().unwrap();
