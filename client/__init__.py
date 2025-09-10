@@ -4,8 +4,10 @@ import asyncio
 
 class RadioClient:
     def __init__(self, 
+                 address: str,
                  reader: asyncio.StreamReader, 
                  writer: asyncio.StreamWriter):
+        self.address = address
         self.reader = reader
         self.writer = writer
 
@@ -21,7 +23,7 @@ class RadioClient:
     async def print_received(self):
         while not self.reader.at_eof():
             message = await self.recv()
-            print(self.protobuf_to_json(message))
+            print(self.address, self.protobuf_to_json(message))
 
     def configure(self, channel, tx_power):
         request = radio.Command()
@@ -41,4 +43,4 @@ class RadioClient:
 
 async def connect(gadget) -> RadioClient:
     (reader, writer) = await asyncio.open_connection(gadget, 1338)
-    return RadioClient(reader, writer)
+    return RadioClient(gadget, reader, writer)
