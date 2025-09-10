@@ -8,7 +8,7 @@ async def connect(sender_address, receiver_address):
 
     
     async def send():
-        for channel in radio.Channel.values:
+        for channel in radio.Channel.values():
             radio1.configure(channel=channel, tx_power=radio.POS2D_BM)
             radio2.configure(channel=channel, tx_power=radio.POS2D_BM)
             for i in range(20):
