@@ -177,7 +177,7 @@ mod app {
     }
     
 
-    #[task(local = [radio_task], priority = 1)]
+    #[task(local = [radio_task])]
     async fn radio_send_receive(cx: radio_send_receive::Context) {
         let radio_task = cx.local.radio_task;
         radio_task.run().await;

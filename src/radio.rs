@@ -70,7 +70,7 @@ impl <'a> RadioTask<'a> {
         loop {
             let mut packet = Packet::new();
             select_biased! {
-                result = self.radio.recv_non_blocking(&mut packet).fuse() => {
+                result = self.radio.recv_poll(&mut packet).fuse() => {
                     match result {
                         Ok(_) => self.received(&mut packet).await,
                         Err(crc) => debug!("CRC check failed: {:?}", crc),
